@@ -6,71 +6,82 @@ import glob
 import shutil
 from time import sleep
 import sys
+import zipfile
 
-path = '/home/grads/farzaneh/grading/'
-untarsubmissions = 'untarsubmissions'
+nameOfAssignment = 'bigint'
+inputTestFile = 'run.txt'
+driverProgram = 'codeTester.cpp'
+
+path = os.getcwd()+'/'
+
+if not os.path.exists('submissions'):
+	print('Submissions not found')
+	nameOfZip = input("What is the name of your compressed submissions file? > ")
+	os.makedirs('submissions')
+	zip_ref = zipfile.ZipFile(path+nameOfZip, 'r')
+	zip_ref.extractall(path+'submissions')
+	zip_ref.close()
+
+if not os.path.exists('untarsubmissions'):
+	os.makedirs('untarsubmissions')
+
+if not os.path.exists('submission_outputs'):
+	os.makedirs('submission_outputs')
 
 errorFile = open('err.txt','w+')
-
 numCompilerErrors = 0
-headersNotFound = 0
-noHeaders = []
+compilerErrors = []
 
 for file in sorted(os.listdir('submissions')):
 	if file.endswith('.tar.gz'):
 		name = file.split('_')[0]
 		
-		if name == 'grantgesabigail' or name == 'pregasenmelissa' or name == 'aguilaalexis' or name == 'caldwellwalter':
-			continue
-
 		print('\nStudent',name)
 		os.chdir(path)
 
 		tar = tarfile.open(path + 'submissions/'+file)
-		tar.extractall(path=untarsubmissions)
+		tar.extractall(path='untarsubmissions')
 		tar.close()
 
 		os.system('find . -name \'.*\' -exec rm -rv {} +')
 
-		folder = os.listdir(untarsubmissions)
-		if 'date.h' in folder or 'Date.h' in folder:
+		folder = os.listdir('untarsubmissions')
+		if nameOfAssignment+'.h' in folder or nameOfAssignment.capitalize()+'.h' in folder:
 			os.chdir(path+'untarsubmissions/')
 			filesThatNeedMoving = glob.glob('*')
-			os.mkdir(path+untarsubmissions+'/'+name)
+			os.mkdir(path+'untarsubmissions'+'/'+name)
 			for fileMoving in filesThatNeedMoving:
-				os.rename(path+untarsubmissions+'/'+fileMoving, path+untarsubmissions+'/'+name+'/'+fileMoving)
+				os.rename(path+'untarsubmissions'+'/'+fileMoving, path+'untarsubmissions'+'/'+name+'/'+fileMoving)
 			os.chdir('..')
 
-		folder = os.listdir(untarsubmissions)[0]
+		folder = os.listdir('untarsubmissions')[0]
 		os.chdir(path+'untarsubmissions/'+folder)
 
-		if 'date.h' not in os.listdir() and 'Date.h' not in os.listdir():
+		if nameOfAssignment+'.h' not in os.listdir() and nameOfAssignment.capitalize()+'.h' not in os.listdir():
 			here = glob.glob('**/*.h', recursive=True)[0]
 			os.chdir('..')
-			if 'date.h' in here or 'Date.h' in here:
+			if nameOfAssignment+'.h' in here or nameOfAssignment.capitalize()+'.h' in here:
 				here = glob.glob('**/*.h', recursive=True)[0]
 				dirs = here.split('/')
 				os.makedirs(dirs[-2])
 				for fileThatNeedMoving in os.listdir('/'.join(dirs[:-1])):
 					os.rename('/'.join(dirs[:-1])+'/'+fileThatNeedMoving,dirs[-2]+'/'+fileThatNeedMoving)
-				shutil.rmtree(path+untarsubmissions+'/'+dirs[0])
+				shutil.rmtree(path+'untarsubmissions'+'/'+dirs[0])
 				folder = os.listdir()[0]
 				os.chdir(folder)
 			else:
 				print('Skipping',name,'because header not found')
-				headersNotFound+=1
-				noHeaders.append(name)
 				os.chdir('..')
 				shutil.rmtree(folder)
 				os.chdir('..')
 				continue
 
 		for files in os.listdir():
-			if files != 'date.cpp' and files != 'date.h' and files != 'Date.cpp' and files != 'Date.h':
+			if files != nameOfAssignment+'.cpp' and files != nameOfAssignment+'.h' and files != nameOfAssignment.capitalize()+'.cpp' and files != nameOfAssignment.capitalize()+'.h':
 				os.remove(files)
 
-		copyfile(path+'codeDestroyer.cpp','codeDestroyer.cpp')
-		copyfile(path+'run.txt','run.txt')
+		copyfile(path+driverProgram,driverProgram)
+		copyfile(path+inputTestFile,inputTestFile)
 
 		cppFiles = glob.glob('*.cpp')
 		cppFiles.insert(0,'-std=c++11')
@@ -86,6 +97,7 @@ for file in sorted(os.listdir('submissions')):
 			shutil.rmtree(folder)
 			os.chdir('..')
 			numCompilerErrors+=1
+			compilerErrors.append(name)
 			continue
 		else:
 			print('Compile successful')
@@ -98,9 +110,9 @@ for file in sorted(os.listdir('submissions')):
 			continue
 
 		outputFile = open(name+'_output.txt','w+')
-		inputFile = open('run.txt','r')
-		print('Running codeDestroyer!')
-		execPath = path+untarsubmissions+'/'+folder+'/a.out'
+		inputFile = open(inputTestFile,'r')
+		print('Running',driverProgram)
+		execPath = path+'untarsubmissions'+'/'+folder+'/a.out'
 		executeTest = Popen(execPath,stderr=errorFile,stdout=outputFile,stdin=inputFile)
 		cont = False
 		for i in range(3):
@@ -131,7 +143,7 @@ for file in sorted(os.listdir('submissions')):
 				print('Error has occured',executeStatusCode)
 				outputFile.write('Error '+str(executeStatusCode)+'\n')
 		else:
-			print('Survived codeDestroyer')
+			print('Survived',driverProgram)
 
 
 		copyfile(name+'_output.txt',path+'submission_outputs/'+name+'_output.txt')
@@ -145,6 +157,5 @@ for file in sorted(os.listdir('submissions')):
 errorFile.close()
 os.system('rm err.txt')
 print('Number of compiler errors:',numCompilerErrors)
-print('Number of projects with headers not found:',headersNotFound)
-print(noHeaders)
+print(compilerErrors)
 print('\nDone!')
